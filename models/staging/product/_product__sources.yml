@@ -1,0 +1,24 @@
+version: 2
+
+sources:
+  - name: product
+    description: Raw product usage data landed from the Workato-style platform.
+    database: product_usage
+    schema: raw
+    tables:
+      - name: accounts
+        description: One row per customer account.
+      - name: account_plan_history
+        description: Plan and MRR per account over time. valid_to is null for the current plan.
+      - name: workspaces
+        description: One row per workspace. Accounts can have several workspaces.
+      - name: users
+        description: One row per user. Each user belongs to one workspace.
+      - name: recipes
+        description: One row per recipe (an automated workflow).
+      - name: recipe_connectors
+        description: Connectors used by each recipe. Can contain duplicates.
+      - name: recipe_jobs
+        description: One row per recipe run. Can arrive late (see loaded_at).
+      - name: events
+        description: Raw product events. Re-delivered events create duplicate event_ids.

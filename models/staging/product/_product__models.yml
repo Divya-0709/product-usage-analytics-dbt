@@ -1,0 +1,118 @@
+version: 2
+
+models:
+  - name: stg_product__accounts
+    description: One row per customer account.
+    columns:
+      - name: account_id
+        description: Primary key.
+        data_tests: [unique, not_null]
+      - name: segment
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ['SMB', 'Mid-Market', 'Enterprise']
+
+  - name: stg_product__account_plan_history
+    description: One row per account per plan period. is_current_plan marks the open period.
+    columns:
+      - name: account_id
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('stg_product__accounts')
+                field: account_id
+      - name: mrr
+        data_tests: [not_null]
+
+  - name: stg_product__workspaces
+    description: One row per workspace.
+    columns:
+      - name: workspace_id
+        description: Primary key.
+        data_tests: [unique, not_null]
+      - name: account_id
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('stg_product__accounts')
+                field: account_id
+      - name: is_internal
+        description: True for internal employee workspaces. Excluded from customer metrics.
+
+  - name: stg_product__users
+    description: One row per user.
+    columns:
+      - name: user_id
+        description: Primary key.
+        data_tests: [unique, not_null]
+      - name: workspace_id
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('stg_product__workspaces')
+                field: workspace_id
+
+  - name: stg_product__recipes
+    description: One row per recipe.
+    columns:
+      - name: recipe_id
+        description: Primary key.
+        data_tests: [unique, not_null]
+      - name: workspace_id
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('stg_product__workspaces')
+                field: workspace_id
+
+  - name: stg_product__recipe_connectors
+    description: Connectors per recipe, 1:1 with source. May contain duplicate recipe/connector pairs.
+    columns:
+      - name: recipe_id
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('stg_product__recipes')
+                field: recipe_id
+
+  - name: stg_product__recipe_jobs
+    description: One row per recipe run. Known issues are tested at warn level and fixed downstream.
+    columns:
+      - name: job_id
+        description: Primary key.
+        data_tests: [unique, not_null]
+      - name: workspace_id
+        description: Missing on a small share of jobs (known source issue).
+        data_tests:
+          - not_null:
+              config:
+                severity: warn
+      - name: job_status
+        description: succeeded or failed. Null when the run is still going or was lost.
+        data_tests:
+          - not_null:
+              config:
+                severity: warn
+          - accepted_values:
+              arguments:
+                values: ['succeeded', 'failed']
+      - name: tasks_used
+        data_tests: [not_null]
+
+  - name: stg_product__events
+    description: Product events, 1:1 with source. Duplicate event_ids exist (re-delivered events).
+    columns:
+      - name: event_id
+        description: Should be unique, but the source re-delivers some events. Fixed in int_events__deduplicated.
+        data_tests:
+          - unique:
+              config:
+                severity: warn
+          - not_null
+      - name: event_name
+        data_tests: [not_null]
