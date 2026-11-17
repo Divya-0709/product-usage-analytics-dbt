@@ -1,0 +1,49 @@
+version: 2
+
+models:
+  - name: fct_recipe_jobs
+    description: "Grain: one row per recipe job run. Includes internal workspaces, flagged with is_internal."
+    columns:
+      - name: job_id
+        description: Primary key.
+        data_tests: [unique, not_null]
+      - name: workspace_id
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_workspaces')
+                field: workspace_id
+      - name: recipe_id
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('dim_recipes')
+                field: recipe_id
+      - name: job_date
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('dim_date')
+                field: date_day
+
+  - name: fct_daily_workspace_usage
+    description: >
+      Grain: one row per customer workspace per day with any activity.
+      Internal workspaces are excluded. The default source for usage dashboards.
+    columns:
+      - name: workspace_day_id
+        description: Primary key (workspace_id + activity_date).
+        data_tests: [unique, not_null]
+      - name: workspace_id
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('dim_workspaces')
+                field: workspace_id
+      - name: jobs_run
+        description: All job runs that day, whatever their status.
+      - name: tasks_used
+        description: Tasks consumed. Tasks are Workato's billing unit.
+      - name: active_users
+        description: Distinct users with at least one product event that day.
