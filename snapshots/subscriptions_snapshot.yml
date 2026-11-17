@@ -1,0 +1,13 @@
+snapshots:
+  - name: subscriptions_snapshot
+    description: >
+      SCD Type 2 history of each account's plan. The billing table overwrites plans in place,
+      so this snapshot is the only record of what plan an account was on at any point in time.
+      dbt_valid_to is null for the current row.
+    relation: source('product', 'subscriptions')
+    config:
+      schema: snapshots
+      unique_key: account_id
+      strategy: timestamp
+      updated_at: updated_at
+      hard_deletes: invalidate

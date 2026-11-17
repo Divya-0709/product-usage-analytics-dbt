@@ -22,3 +22,7 @@ sources:
         description: One row per recipe run. Can arrive late (see loaded_at).
       - name: events
         description: Raw product events. Re-delivered events create duplicate event_ids.
+      - name: subscriptions
+        description: >
+          Current plan per account, as the billing system stores it. Overwritten in place
+          when a plan changes, and the row is deleted when an account churns. No history.
