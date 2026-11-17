@@ -1,0 +1,46 @@
+version: 2
+
+models:
+  - name: dim_date
+    description: One row per calendar day, 2025-01-01 to 2026-12-31.
+    columns:
+      - name: date_day
+        description: Primary key.
+        data_tests: [unique, not_null]
+
+  - name: dim_accounts
+    description: One row per customer account, with its current plan. Churned when the latest plan period has ended.
+    columns:
+      - name: account_id
+        description: Primary key.
+        data_tests: [unique, not_null]
+      - name: current_plan
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ['Starter', 'Business', 'Enterprise', 'Churned']
+      - name: current_mrr
+        description: Monthly recurring revenue on the current plan. 0 when churned.
+        data_tests: [not_null]
+
+  - name: dim_workspaces
+    description: One row per workspace, with account segment, region and plan.
+    columns:
+      - name: workspace_id
+        description: Primary key.
+        data_tests: [unique, not_null]
+      - name: account_id
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('dim_accounts')
+                field: account_id
+
+  - name: dim_recipes
+    description: One row per recipe, with its number of distinct connectors.
+    columns:
+      - name: recipe_id
+        description: Primary key.
+        data_tests: [unique, not_null]
+      - name: connector_count
+        data_tests: [not_null]
