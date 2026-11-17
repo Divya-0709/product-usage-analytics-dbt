@@ -1,0 +1,36 @@
+version: 2
+
+models:
+  - name: int_events__deduplicated
+    description: Product events with re-delivered duplicates removed. One row per event_id.
+    columns:
+      - name: event_id
+        description: Primary key. Unique after deduplication.
+        data_tests: [unique, not_null]
+
+  - name: int_recipe_jobs__cleaned
+    description: >
+      One row per recipe run, with missing workspace_id recovered from the recipe
+      and null status labelled 'unknown'.
+    columns:
+      - name: job_id
+        description: Primary key.
+        data_tests: [unique, not_null]
+      - name: workspace_id
+        description: Never null here. Recovered from the recipe when missing at source.
+        data_tests: [not_null]
+      - name: is_workspace_backfilled
+        description: True when workspace_id was missing at source and recovered from the recipe.
+      - name: job_status
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['succeeded', 'failed', 'unknown']
+
+  - name: int_recipe_connectors__deduplicated
+    description: One row per recipe and connector, duplicates removed.
+    columns:
+      - name: recipe_connector_id
+        description: Primary key (recipe_id + connector_name).
+        data_tests: [unique, not_null]
