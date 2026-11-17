@@ -1,8 +1,28 @@
 -- Grain: one row per recipe job run.
--- Built as a table for now; made incremental on Day 4.
+--
+-- Incremental: each run only processes jobs LOADED recently, not the full history.
+-- We filter on loaded_at (when the row arrived), not job_date (when the job ran),
+-- so a job that ran days ago but arrived late is still picked up.
+-- The lookback window re-reads the last few days to catch rows that land out of order;
+-- merge on job_id means re-read rows are updated, never duplicated.
+
+{{ config(
+    materialized = 'incremental',
+    unique_key = 'job_id',
+    incremental_strategy = 'merge',
+    on_schema_change = 'append_new_columns',
+    cluster_by = ['job_date']
+) }}
 
 with jobs as (
     select * from {{ ref('int_recipe_jobs__cleaned') }}
+
+    {% if is_incremental() %}
+    where loaded_at > (
+        select {{ dbt.dateadd('day', -var('lookback_days', 3), 'max(loaded_at)') }}
+        from {{ this }}
+    )
+    {% endif %}
 ),
 
 workspaces as (
@@ -25,6 +45,6 @@ select
     jobs.duration_seconds,
     jobs.tasks_used,
     jobs.loaded_at
-from jobs
+from jobs   
 left join workspaces
     on jobs.workspace_id = workspaces.workspace_id
