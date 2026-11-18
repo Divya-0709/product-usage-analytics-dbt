@@ -10,18 +10,36 @@ models:
 
   - name: dim_accounts
     description: One row per customer account, with its current plan. Churned when the latest plan period has ended.
+    config:
+      contract:
+        enforced: true
     columns:
       - name: account_id
         description: Primary key.
+        data_type: varchar
         data_tests: [unique, not_null]
+      - name: account_name
+        data_type: varchar
+      - name: segment
+        data_type: varchar
+      - name: region
+        data_type: varchar
+      - name: created_date
+        data_type: date
       - name: current_plan
+        data_type: varchar
         data_tests:
           - accepted_values:
               arguments:
                 values: ['Starter', 'Business', 'Enterprise', 'Churned']
       - name: current_mrr
         description: Monthly recurring revenue on the current plan. 0 when churned.
+        data_type: int
         data_tests: [not_null]
+      - name: is_churned
+        data_type: boolean
+      - name: churned_date
+        data_type: date
 
   - name: dim_workspaces
     description: One row per workspace, with account segment, region and plan.

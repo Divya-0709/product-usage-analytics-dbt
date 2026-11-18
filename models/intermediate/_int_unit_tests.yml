@@ -1,0 +1,39 @@
+version: 2
+
+# Unit tests check the LOGIC of a model with small, made-up input rows,
+# so the fix is proven even if the real data never contains the edge case.
+
+unit_tests:
+  - name: dedup_keeps_latest_loaded_copy
+    description: When the same event_id arrives twice, keep only the copy loaded last.
+    model: int_events__deduplicated
+    given:
+      - input: ref('stg_product__events')
+        rows:
+          - {event_id: E1, event_name: recipe_created, loaded_at: '2026-10-01 10:00:00'}
+          - {event_id: E1, event_name: recipe_created, loaded_at: '2026-10-02 08:00:00'}
+          - {event_id: E2, event_name: recipe_edited,  loaded_at: '2026-10-01 11:00:00'}
+    expect:
+      rows:
+        - {event_id: E1, loaded_at: '2026-10-02 08:00:00'}
+        - {event_id: E2, loaded_at: '2026-10-01 11:00:00'}
+
+  - name: jobs_cleaning_backfills_workspace_and_labels_unknown
+    description: >
+      A job with no workspace_id gets its recipe's workspace and is flagged as backfilled.
+      A job with no status is labelled 'unknown' and is not counted as a success.
+    model: int_recipe_jobs__cleaned
+    given:
+      - input: ref('stg_product__recipe_jobs')
+        rows:
+          - {job_id: J1, recipe_id: R1, workspace_id: W1,   job_status: succeeded}
+          - {job_id: J2, recipe_id: R1, workspace_id: null, job_status: failed}
+          - {job_id: J3, recipe_id: R1, workspace_id: W1,   job_status: null}
+      - input: ref('stg_product__recipes')
+        rows:
+          - {recipe_id: R1, workspace_id: W1}
+    expect:
+      rows:
+        - {job_id: J1, workspace_id: W1, is_workspace_backfilled: false, job_status: succeeded, is_success: true}
+        - {job_id: J2, workspace_id: W1, is_workspace_backfilled: true,  job_status: failed,    is_success: false}
+        - {job_id: J3, workspace_id: W1, is_workspace_backfilled: false, job_status: unknown,   is_success: false}
