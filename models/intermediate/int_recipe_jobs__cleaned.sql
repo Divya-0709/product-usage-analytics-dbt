@@ -18,7 +18,7 @@ cleaned as (
         coalesce(jobs.workspace_id, recipes.workspace_id) as workspace_id,
         jobs.workspace_id is null as is_workspace_backfilled,
         coalesce(jobs.job_status, 'unknown') as job_status,
-        coalesce(jobs.job_status = 'succeeded', false) as is_success,
+        coalesce(jobs.job_status = 'succeeded', false)as is_success,
         jobs.started_at,
         jobs.finished_at,
         jobs.job_date,
