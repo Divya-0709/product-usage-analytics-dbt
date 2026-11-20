@@ -24,3 +24,8 @@ models:
     marts:
       +materialized: table
       +schema: marts
+
+data_tests:
+  product_usage_analytics:
+    +store_failures: true
+    +schema: test_failures
