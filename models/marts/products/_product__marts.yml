@@ -3,6 +3,10 @@ version: 2
 models:
   - name: fct_recipe_jobs
     description: "Grain: one row per recipe job run. Includes internal workspaces, flagged with is_internal."
+    config:
+      meta:
+        owner: analytics-engineering
+        alert_channel: "#data-alerts"
     columns:
       - name: job_id
         description: Primary key.
@@ -26,11 +30,20 @@ models:
               arguments:
                 to: ref('dim_date')
                 field: date_day
+          - daily_volume_drop:
+              arguments:
+                max_drop_pct: 0.5
+                trailing_days: 7
+                check_last_days: 30
 
   - name: fct_daily_workspace_usage
     description: >
       Grain: one row per customer workspace per day with any activity.
       Internal workspaces are excluded. The default source for usage dashboards.
+    config:
+      meta:
+        owner: analytics-engineering
+        alert_channel: "#data-alerts"
     columns:
       - name: workspace_day_id
         description: Primary key (workspace_id + activity_date).
