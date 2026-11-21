@@ -2,31 +2,55 @@ version: 2
 
 models:
   - name: dim_date
-    description: One row per calendar day, 2025-01-01 to 2026-12-31.
+    description: >
+      Calendar dimension. Grain: one row per day, 2025-01-01 to 2026-12-31.
+      Join facts to it to group by week, month or quarter, or to show days with no activity.
     columns:
       - name: date_day
-        description: Primary key.
+        description: The calendar date. Primary key.
         data_tests: [unique, not_null]
+      - name: year_number
+        description: Calendar year, e.g. 2026.
+      - name: month_number
+        description: Month of the year, 1 to 12.
+      - name: month_start
+        description: First day of the month. Group by this for monthly reporting.
+      - name: week_start
+        description: First day of the week (Monday). Group by this for weekly reporting.
+      - name: quarter_start
+        description: First day of the calendar quarter.
+      - name: is_weekend
+        description: "`true` on Saturday and Sunday."
 
   - name: dim_accounts
-    description: One row per customer account, with its current plan. Churned when the latest plan period has ended.
+    description: >
+      Customer accounts. Grain: one row per account, with its current plan.
+      An account is churned when its latest plan period has ended.
+      Plan history over time lives in the subscriptions_snapshot (SCD Type 2).
     config:
       contract:
         enforced: true
+      meta:
+        owner: analytics-engineering
     columns:
       - name: account_id
-        description: Primary key.
+        description: "{{ doc('account_id') }} Primary key."
         data_type: varchar
         data_tests: [unique, not_null]
       - name: account_name
+        description: Customer's account name.
         data_type: varchar
       - name: segment
+        description: "Customer size segment: SMB, Mid-Market or Enterprise."
         data_type: varchar
       - name: region
+        description: "Customer's region: US, EU or APAC."
         data_type: varchar
       - name: created_date
+        description: Date the account was created.
         data_type: date
       - name: current_plan
+        description: Plan the account is on today. `Churned` when the latest plan period has ended.
         data_type: varchar
         data_tests:
           - accepted_values:
@@ -37,28 +61,58 @@ models:
         data_type: int
         data_tests: [not_null]
       - name: is_churned
+        description: "`true` when the account has no active plan."
         data_type: boolean
       - name: churned_date
+        description: Date the last plan period ended. Null for active accounts.
         data_type: date
 
   - name: dim_workspaces
-    description: One row per workspace, with account segment, region and plan.
+    description: >
+      Workspaces. Grain: one row per workspace, with the account attributes analysts
+      filter by most (segment, region, plan), so they don't need an extra join.
     columns:
       - name: workspace_id
-        description: Primary key.
+        description: "{{ doc('workspace_id') }} Primary key."
         data_tests: [unique, not_null]
       - name: account_id
+        description: "{{ doc('account_id') }}"
         data_tests:
           - relationships:
               arguments:
                 to: ref('dim_accounts')
                 field: account_id
+      - name: environment
+        description: "`prod` or `test`: the customer's own label for the workspace."
+      - name: created_date
+        description: Date the workspace was created.
+      - name: is_internal
+        description: "{{ doc('is_internal') }}"
+      - name: segment
+        description: Segment of the owning account.
+      - name: region
+        description: Region of the owning account.
+      - name: current_plan
+        description: Current plan of the owning account.
+      - name: is_account_churned
+        description: "`true` when the owning account has churned."
 
   - name: dim_recipes
-    description: One row per recipe, with its number of distinct connectors.
+    description: "Recipes. Grain: one row per recipe, with how many distinct connectors it uses."
     columns:
       - name: recipe_id
-        description: Primary key.
+        description: "{{ doc('recipe_id') }} Primary key."
         data_tests: [unique, not_null]
+      - name: workspace_id
+        description: "{{ doc('workspace_id') }}"
+      - name: created_by_user_id
+        description: User who built the recipe.
+      - name: trigger_type
+        description: "What starts the recipe: `scheduled`, `webhook`, `polling` or `api`."
+      - name: created_date
+        description: Date the recipe was created.
+      - name: is_active
+        description: "`true` when the recipe is switched on and can run."
       - name: connector_count
+        description: Number of distinct connectors (apps) the recipe uses, after removing duplicates. 0 if none.
         data_tests: [not_null]

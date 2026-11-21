@@ -2,29 +2,37 @@ version: 2
 
 models:
   - name: fct_recipe_jobs
-    description: "Grain: one row per recipe job run. Includes internal workspaces, flagged with is_internal."
+    description: >
+      Recipe runs. Grain: one row per recipe job run, about 150,000 rows.
+      Includes internal workspaces, flagged with is_internal.
+      Incremental (merge on job_id, filtered on loaded_at with a 3-day lookback).
     config:
       meta:
         owner: analytics-engineering
         alert_channel: "#data-alerts"
     columns:
       - name: job_id
-        description: Primary key.
+        description: Recipe run identifier. Primary key.
         data_tests: [unique, not_null]
+      - name: recipe_id
+        description: "{{ doc('recipe_id') }}"
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('dim_recipes')
+                field: recipe_id
       - name: workspace_id
+        description: "{{ doc('workspace_id') }} Recovered from the recipe when missing at source."
         data_tests:
           - not_null
           - relationships:
               arguments:
                 to: ref('dim_workspaces')
                 field: workspace_id
-      - name: recipe_id
-        data_tests:
-          - relationships:
-              arguments:
-                to: ref('dim_recipes')
-                field: recipe_id
+      - name: account_id
+        description: "{{ doc('account_id') }}"
       - name: job_date
+        description: Date the job started.
         data_tests:
           - relationships:
               arguments:
@@ -35,11 +43,27 @@ models:
                 max_drop_pct: 0.5
                 trailing_days: 7
                 check_last_days: 30
+      - name: job_status
+        description: "{{ doc('job_status') }}"
+      - name: is_success
+        description: "`true` only when job_status is `succeeded`. Never null."
+      - name: is_workspace_backfilled
+        description: "`true` when workspace_id was missing at source and recovered from the recipe."
+      - name: is_internal
+        description: "{{ doc('is_internal') }}"
+      - name: started_at
+        description: When the run started.
+      - name: finished_at
+        description: When the run finished. Null if still running or lost.
+      - name: duration_seconds
+        description: Run time in seconds (finished_at minus started_at).
+      - name: tasks_used
+        description: "{{ doc('tasks_used') }}"
+      - name: loaded_at
+        description: "{{ doc('loaded_at') }}"
 
   - name: fct_daily_workspace_usage
-    description: >
-      Grain: one row per customer workspace per day with any activity.
-      Internal workspaces are excluded. The default source for usage dashboards.
+    description: "{{ doc('fct_daily_workspace_usage') }}"
     config:
       meta:
         owner: analytics-engineering
@@ -49,14 +73,31 @@ models:
         description: Primary key (workspace_id + activity_date).
         data_tests: [unique, not_null]
       - name: workspace_id
+        description: "{{ doc('workspace_id') }}"
         data_tests:
           - relationships:
               arguments:
                 to: ref('dim_workspaces')
                 field: workspace_id
+      - name: account_id
+        description: "{{ doc('account_id') }}"
+      - name: activity_date
+        description: The day the activity happened.
       - name: jobs_run
-        description: All job runs that day, whatever their status.
+        description: All recipe runs that day, whatever their status.
+      - name: successful_jobs
+        description: Runs that succeeded.
+      - name: failed_jobs
+        description: Runs that failed.
+      - name: unknown_status_jobs
+        description: Runs with no status at source.
       - name: tasks_used
-        description: Tasks consumed. Tasks are Workato's billing unit.
+        description: "{{ doc('tasks_used') }}"
+      - name: active_recipes
+        description: Distinct recipes that ran at least once that day.
       - name: active_users
         description: Distinct users with at least one product event that day.
+      - name: ai_agent_actions
+        description: Number of AI agent actions (event `ai_agent_action`).
+      - name: mcp_server_calls
+        description: Number of MCP server calls (event `mcp_server_called`).

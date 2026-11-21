@@ -1,0 +1,20 @@
+version: 2
+
+# Exposures record who uses the marts. They appear in the lineage graph,
+# so before changing a model you can see which dashboards depend on it.
+
+exposures:
+  - name: product_usage_dashboard
+    label: Product usage dashboard
+    type: dashboard
+    maturity: medium
+    description: >
+      Daily usage for product managers: active workspaces, jobs and success rate,
+      tasks used, and AI agent and MCP adoption, by segment and region.
+      (Planned dashboard for this portfolio project.)
+    depends_on:
+      - ref('fct_daily_workspace_usage')
+      - ref('dim_workspaces')
+      - ref('dim_date')
+    owner:
+      name: Analytics Engineering
