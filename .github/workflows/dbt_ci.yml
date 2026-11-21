@@ -1,0 +1,63 @@
+# Runs on every pull request into main.
+# Builds and tests the whole dbt project in a temporary Snowflake schema
+# (ci_pr_<number>_...), so nothing reaches main unless it builds and passes tests.
+# The temporary schemas are dropped at the end, even if the build fails.
+
+name: dbt CI
+
+on:
+  pull_request:
+    branches: [main]
+
+jobs:
+  dbt-build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    env:
+      SNOWFLAKE_ACCOUNT: ${{ secrets.SNOWFLAKE_ACCOUNT }}
+      SNOWFLAKE_USER: ${{ secrets.SNOWFLAKE_USER }}
+      SNOWFLAKE_PASSWORD: ${{ secrets.SNOWFLAKE_PASSWORD }}
+      CI_SCHEMA: ci_pr_${{ github.event.pull_request.number }}
+
+    steps:
+      - name: Check out the code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dbt
+        run: pip install "dbt-core~=1.12.0" "dbt-snowflake~=1.12.0"
+
+      - name: Write the dbt connection profile
+        run: |
+          mkdir -p ~/.dbt
+          cat > ~/.dbt/profiles.yml <<'PROFILE'
+          default:
+            target: ci
+            outputs:
+              ci:
+                type: snowflake
+                account: "{{ env_var('SNOWFLAKE_ACCOUNT') }}"
+                user: "{{ env_var('SNOWFLAKE_USER') }}"
+                password: "{{ env_var('SNOWFLAKE_PASSWORD') }}"
+                role: TRANSFORMER
+                warehouse: TRANSFORMING_WH
+                database: PRODUCT_USAGE
+                schema: "{{ env_var('CI_SCHEMA') }}"
+                threads: 4
+          PROFILE
+
+      - name: Check the connection
+        run: dbt debug
+
+      - name: Build and test everything
+        run: dbt build
+
+      - name: Drop the temporary CI schemas
+        if: always()
+        run: |
+          dbt run-operation drop_ci_schemas --args "{prefix: $CI_SCHEMA}"
